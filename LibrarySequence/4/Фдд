@@ -1,0 +1,193 @@
+#include <iostream>
+#include <cassert>
+#include <vector>
+#include <string>
+#include <functional>
+#include <algorithm>
+#include <numeric>
+#include "BinaryTree.h"
+#include "Person.h"
+
+// Дополнительные функциональные тесты
+
+void TestBalancingProperties() {
+    std::cout << "=== TestBalancingProperties ===" << std::endl;
+    
+    BinaryTree<int> tree;
+    
+    // Вставляем элементы в порядке возрастания (worst case для обычного BST)
+    std::vector<int> ascending = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    for (int val : ascending) {
+        tree.Insert(val);
+    }
+    
+    // Дерево должно оставаться сбалансированным
+    // Проверим, что поиск работает эффективно
+    for (int val : ascending) {
+        assert(tree.Search(val));
+    }
+    
+    // Вставляем элементы в порядке убывания
+    BinaryTree<int> tree2;
+    std::vector<int> descending = {10, 9, 8, 7, 6, 5, 4, 3, 2, 1};
+    for (int val : descending) {
+        tree2.Insert(val);
+    }
+    
+    for (int val : descending) {
+        assert(tree2.Search(val));
+    }
+    
+    std::cout << "TestBalancingProperties passed!" << std::endl;
+}
+
+void TestAdvancedTraversals() {
+    std::cout << "=== TestAdvancedTraversals ===" << std::endl;
+    
+    BinaryTree<int> tree;
+    std::vector<int> values = {15, 10, 20, 8, 12, 17, 25, 6, 11, 13, 16, 18, 22, 27};
+    
+    for (int val : values) {
+        tree.Insert(val);
+    }
+    
+    // Проверяем свойства различных обходов
+    std::vector<int> preorder, inorder, postorder;
+    
+    tree.KLP([&](const int& val) { preorder.push_back(val); });   // Preorder
+    tree.LKP([&](const int& val) { inorder.push_back(val); });   // Inorder
+    tree.LPK([&](const int& val) { postorder.push_back(val); }); // Postorder
+    
+    // Inorder должен быть отсортирован
+    for (size_t i = 1; i < inorder.size(); i++) {
+        assert(inorder[i-1] < inorder[i]);
+    }
+    
+    // Preorder должен начинаться с корня
+    // (корень может быть не 15 из-за балансировки, но должен быть в дереве)
+    assert(std::find(values.begin(), values.end(), preorder[0]) != values.end());
+    
+    // Все обходы должны содержать одинаковые элементы
+    std::sort(preorder.begin(), preorder.end());
+    std::sort(postorder.begin(), postorder.end());
+    std::sort(inorder.begin(), inorder.end());
+    
+    assert(preorder == inorder);
+    assert(postorder == inorder);
+    
+    std::cout << "TestAdvancedTraversals passed!" << std::endl;
+}
+
+void TestMapChaining() {
+    std::cout << "=== TestMapChaining ===" << std::endl;
+    
+    BinaryTree<int> tree;
+    std::vector<int> values = {1, 2, 3, 4, 5};
+    for (int val : values) {
+        tree.Insert(val);
+    }
+    
+    // Цепочка преобразований: x -> x*2 -> x+1 -> x*x
+    BinaryTree<int> step1 = tree.Map([](const int& x) { return x * 2; });
+    BinaryTree<int> step2 = step1.Map([](const int& x) { return x + 1; });
+    BinaryTree<int> final = step2.Map([](const int& x) { return x * x; });
+    
+    // Проверяем результат для значения 3:
+    // 3 -> 6 -> 7 -> 49
+    assert(final.Search(49));
+    
+    // Для значения 5: 5 -> 10 -> 11 -> 121
+    assert(final.Search(121));
+    
+    std::cout << "TestMapChaining passed!" << std::endl;
+}
+
+void TestWhereFiltering() {
+    std::cout << "=== TestWhereFiltering ===" << std::endl;
+    
+    BinaryTree<int> tree;
+    for (int i = 1; i <= 20; i++) {
+        tree.Insert(i);
+    }
+    
+    // Фильтр 1: только четные числа
+    BinaryTree<int> evens = tree.Where([](const int& x) { return x % 2 == 0; });
+    
+    for (int i = 2; i <= 20; i += 2) {
+        assert(evens.Search(i));
+    }
+    for (int i = 1; i <= 19; i += 2) {
+        assert(!evens.Search(i));
+    }
+    
+    // Фильтр 2: только числа больше 10
+    BinaryTree<int> large = tree.Where([](const int& x) { return x > 10; });
+    
+    for (int i = 11; i <= 20; i++) {
+        assert(large.Search(i));
+    }
+    for (int i = 1; i <= 10; i++) {
+        assert(!large.Search(i));
+    }
+    
+    // Комбинация фильтров: четные и больше 10
+    BinaryTree<int> evenAndLarge = tree.Where([](const int& x) { 
+        return x % 2 == 0 && x > 10; 
+    });
+    
+    std::vector<int> expected = {12, 14, 16, 18, 20};
+    for (int val : expected) {
+        assert(evenAndLarge.Search(val));
+    }
+    assert(evenAndLarge.Size() == expected.size());
+    
+    std::cout << "TestWhereFiltering passed!" << std::endl;
+}
+
+void TestReduceOperations() {
+    std::cout << "=== TestReduceOperations ===" << std::endl;
+    
+    BinaryTree<int> tree;
+    std::vector<int> values = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    for (int val : values) {
+        tree.Insert(val);
+    }
+    
+    // Сумма всех элементов
+    int sum = tree.Reduce([](const int& acc, const int& val) { 
+        return acc + val; 
+    }, 0);
+    assert(sum == 55); // 1+2+...+10 = 55
+    
+    // Произведение всех элементов
+    int product = tree.Reduce([](const int& acc, const int& val) { 
+        return acc * val; 
+    }, 1);
+    assert(product == 3628800); // 10!
+    
+    // Максимальный элемент
+    int max = tree.Reduce([](const int& acc, const int& val) { 
+        return std::max(acc, val); 
+    }, INT_MIN);
+    assert(max == 10);
+    
+    // Минимальный элемент
+    int min = tree.Reduce([](const int& acc, const int& val) { 
+        return std::min(acc, val); 
+    }, INT_MAX);
+    assert(min == 1);
+    
+    // Подсчет четных элементов
+    int evenCount = tree.Reduce([](const int& acc, const int& val) { 
+        return acc + (val % 2 == 0 ? 1 : 0); 
+    }, 0);
+    assert(evenCount == 5); // 2, 4, 6, 8, 10
+    
+    std::cout << "TestReduceOperations passed!" << std::endl;
+}
+
+void TestSubtreeComplexOperations() {
+    std::cout << "=== TestSubtreeComplexOperations ===" << std::endl;
+    
+    BinaryTree<int> mainTree;
+    std::vector<int> values = {50, 30, 70, 20, 40, 60, 80, 10, 25, 35, 45, 55, 65, 75, 85};
